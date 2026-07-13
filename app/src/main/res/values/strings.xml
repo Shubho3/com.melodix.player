@@ -1,0 +1,112 @@
+<resources>
+    <string name="app_name">Melodix</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_skip">Skip</string>
+
+    <!-- Permission Step -->
+    <string name="permission_title">Access Your Music</string>
+    <string name="permission_body">Melodix needs access to your media files to discover and play your music library.</string>
+    <string name="permission_grant">Allow Access</string>
+    <string name="permission_granted_continue">Continue</string>
+    <string name="permission_open_settings">Open Settings</string>
+    <string name="permission_skip">Not Now</string>
+
+    <!-- Theme Picker Step -->
+    <string name="theme_title">Pick Your Vibe</string>
+    <string name="theme_body">Choose a theme that matches your style. You can always change it later.</string>
+    <string name="theme_continue">Continue</string>
+
+    <!-- Feature Intro Step -->
+    <string name="feature_next">Next</string>
+    <string name="feature_get_started">Get Started</string>
+    <string name="feature_skip_intro">Skip Intro</string>
+
+    <!-- Gestures Page -->
+    <string name="gestures_title">Swipe to Control</string>
+    <string name="gestures_body">Swipe left or right on the player to skip tracks. Quick and effortless.</string>
+
+    <!-- Smart Playlists Page -->
+    <string name="playlists_title">Smart Playlists</string>
+    <string name="playlists_body">Melodix creates playlists based on your listening habits. The more you listen, the smarter it gets.</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_library">Library</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Home Screen -->
+    <string name="home_subtitle">Ready for focus.</string>
+    <string name="home_recently_played">Recently Played</string>
+    <string name="home_view_all">View All</string>
+    <string name="home_quick_picks">Quick Picks</string>
+    <string name="home_empty">No music found. Grant media access to get started.</string>
+
+    <!-- Library Screen -->
+    <string name="library_title">Library</string>
+    <string name="library_songs">Songs</string>
+    <string name="library_albums">Albums</string>
+    <string name="library_artists">Artists</string>
+    <string name="library_playlists">Playlists</string>
+    <string name="library_empty_songs">No songs found</string>
+    <string name="library_empty_albums">No albums found</string>
+    <string name="library_empty_artists">No artists found</string>
+    <string name="library_empty_playlists">No playlists yet</string>
+    <string name="library_create_playlist">Create Playlist</string>
+    <string name="library_new_playlist">New Playlist</string>
+
+    <!-- Search Screen -->
+    <string name="search_title">Search</string>
+    <string name="search_placeholder">Artists, songs, or albums…</string>
+    <string name="search_prompt">Find your favorite music</string>
+    <string name="search_artists">Artists</string>
+    <string name="search_songs">Songs</string>
+    <string name="search_albums">Albums</string>
+    <string name="search_no_results">No results found</string>
+
+    <!-- Now Playing Screen -->
+    <string name="now_playing_title">Now Playing</string>
+    <string name="now_playing_no_track">No track selected</string>
+    <string name="now_playing_like">Like</string>
+    <string name="now_playing_queue">Queue</string>
+    <string name="now_playing_lyrics">Lyrics</string>
+    <string name="now_playing_eq">EQ</string>
+
+    <!-- Track Options -->
+    <string name="track_add_to_queue">Add to Queue</string>
+    <string name="track_add_to_playlist">Add to Playlist</string>
+
+    <!-- Queue Screen -->
+    <string name="queue_title">Queue</string>
+    <string name="queue_clear">Clear</string>
+    <string name="queue_empty">Your queue is empty. Play a song to get started.</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_subtitle">Manage your audio experience and preferences.</string>
+    <string name="settings_playback">Playback</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_equalizer">Equalizer</string>
+    <string name="settings_equalizer_sub">Custom preset active</string>
+    <string name="settings_sleep_timer">Sleep Timer</string>
+    <string name="settings_sleep_timer_sub">Off</string>
+    <string name="settings_lossless">Lossless Audio</string>
+    <string name="settings_lossless_sub">Stream in highest quality</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_dark_mode">Dark Mode</string>
+    <string name="settings_dark_mode_sub">Follow system theme</string>
+    <string name="settings_notifications_group">Notifications</string>
+    <string name="settings_notifications">Push Notifications</string>
+    <string name="settings_notifications_sub">New releases and recommendations</string>
+    <string name="settings_storage">Storage</string>
+    <string name="settings_cache">Cache</string>
+    <string name="settings_about_group">About</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_open_source">Open Source Licenses</string>
+    <string name="settings_open_source_sub">View third-party licenses</string>
+    <string name="settings_help">Help &amp; Support</string>
+    <string name="settings_help_sub">FAQ, feedback, contact</string>
+    <string name="settings_about">About Melodix</string>
+    <string name="settings_about_sub">Version 1.0 (Build 1)</string>
+</resources>
