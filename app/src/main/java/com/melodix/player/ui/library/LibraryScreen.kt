@@ -23,6 +23,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
@@ -31,6 +33,9 @@ import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -61,6 +66,8 @@ import com.melodix.player.core.components.TrackListItem
 import com.melodix.player.core.components.TrackOptionsSheet
 import com.melodix.player.model.Album
 import com.melodix.player.model.Artist
+import com.melodix.player.model.SortKey
+import com.melodix.player.model.SortSpec
 import com.melodix.player.model.Track
 import com.melodix.player.viewmodel.LibraryTab
 import com.melodix.player.viewmodel.LibraryViewModel
@@ -92,12 +99,25 @@ fun LibraryScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Text(
-            text = stringResource(R.string.library_title),
-            style = MaterialTheme.typography.displayLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 28.dp, bottom = 4.dp),
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 24.dp, end = 12.dp, top = 28.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.library_title),
+                style = MaterialTheme.typography.displayLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.weight(1f),
+            )
+            if (state.selectedTab == LibraryTab.SONGS && state.tracks.isNotEmpty()) {
+                SortButton(
+                    sortSpec = state.sortSpec,
+                    onSortChange = { viewModel.setSortSpec(it) },
+                )
+            }
+        }
 
         LazyRow(
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
@@ -151,6 +171,79 @@ fun LibraryScreen(
             LibraryTab.ALBUMS -> AlbumsTab(state.albums, onOpenAlbum)
             LibraryTab.ARTISTS -> ArtistsTab(state.artists, onOpenArtist)
             LibraryTab.PLAYLISTS -> PlaylistsTab(onOpenPlaylist, onOpenLikedSongs)
+        }
+    }
+}
+
+private fun sortKeyLabel(key: SortKey): String = when (key) {
+    SortKey.TITLE -> "Title"
+    SortKey.DATE_ADDED -> "Date added"
+    SortKey.ARTIST -> "Artist"
+    SortKey.DURATION -> "Duration"
+}
+
+@Composable
+private fun SortButton(sortSpec: SortSpec, onSortChange: (SortSpec) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = Icons.Rounded.SwapVert,
+                contentDescription = "Sort",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            Text(
+                text = "Sort by",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            SortKey.entries.forEach { key ->
+                DropdownMenuItem(
+                    text = { Text(sortKeyLabel(key)) },
+                    onClick = {
+                        onSortChange(sortSpec.copy(key = key))
+                        expanded = false
+                    },
+                    trailingIcon = {
+                        if (key == sortSpec.key) {
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    },
+                )
+            }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            DropdownMenuItem(
+                text = { Text("Ascending") },
+                onClick = {
+                    onSortChange(sortSpec.copy(ascending = true))
+                    expanded = false
+                },
+                trailingIcon = {
+                    if (sortSpec.ascending) {
+                        Icon(Icons.Rounded.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    }
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("Descending") },
+                onClick = {
+                    onSortChange(sortSpec.copy(ascending = false))
+                    expanded = false
+                },
+                trailingIcon = {
+                    if (!sortSpec.ascending) {
+                        Icon(Icons.Rounded.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    }
+                },
+            )
         }
     }
 }

@@ -1,5 +1,10 @@
 package com.melodix.player.ui.nowplaying
 
+import android.net.Uri
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -43,6 +49,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,7 +57,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -62,6 +73,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.melodix.player.R
+import com.melodix.player.core.components.AlbumArtImage
 import com.melodix.player.core.components.formatDuration
 import com.melodix.player.viewmodel.NowPlayingViewModel
 import com.melodix.player.viewmodel.RepeatMode
@@ -91,6 +103,7 @@ fun NowPlayingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .systemBarsPadding()
                 .padding(horizontal = 28.dp),
         ) {
             Row(
@@ -167,38 +180,13 @@ fun NowPlayingScreen(
                     .weight(1f),
                 contentAlignment = Alignment.Center,
             ) {
-                Surface(
+                VinylDisc(
+                    artUri = track?.albumArtUri,
+                    isPlaying = state.isPlaying,
                     modifier = Modifier
-                        .fillMaxWidth(0.88f)
+                        .fillMaxWidth(0.82f)
                         .aspectRatio(1f),
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    shadowElevation = 16.dp,
-                    tonalElevation = 4.dp,
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (track?.albumArtUri != null) {
-                            AsyncImage(
-                                model = track.albumArtUri,
-                                contentDescription = "Album art",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(24.dp)),
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Rounded.MusicNote,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f),
-                                modifier = Modifier.size(80.dp),
-                            )
-                        }
-                    }
-                }
+                )
             }
 
             Spacer(Modifier.height(28.dp))
@@ -374,6 +362,85 @@ fun NowPlayingScreen(
             }
 
             Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun VinylDisc(
+    artUri: Uri?,
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val rotation = remember { Animatable(0f) }
+    // Spin continuously while playing; pause (freeze at the current angle) otherwise.
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            while (true) {
+                rotation.animateTo(
+                    targetValue = rotation.value + 360f,
+                    animationSpec = tween(durationMillis = 9000, easing = LinearEasing),
+                )
+            }
+        }
+    }
+
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .shadow(elevation = 18.dp, shape = CircleShape, clip = false)
+                .rotate(rotation.value)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(Color(0xFF2A2A2A), Color(0xFF0B0B0B)),
+                    ),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            // Concentric vinyl grooves.
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val maxRadius = size.minDimension / 2f
+                val rings = 16
+                for (i in 4..rings) {
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.05f),
+                        radius = maxRadius * (i / (rings + 1f)),
+                        style = Stroke(width = 1f),
+                    )
+                }
+            }
+            // Album art forms the record label at the center.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize(0.42f)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                contentAlignment = Alignment.Center,
+            ) {
+                AlbumArtImage(
+                    artUri = artUri,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
+                )
+            }
+        }
+        // Spindle hole, fixed at the very center.
+        Box(
+            modifier = Modifier
+                .size(16.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF9E9E9E)),
+            )
         }
     }
 }

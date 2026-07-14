@@ -89,21 +89,10 @@ fun MiniPlayer(
                             .background(MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.12f)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (track.albumArtUri != null) {
-                            AsyncImage(
-                                model = track.albumArtUri,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Rounded.MusicNote,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.5f),
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
+                        AlbumArtImage(
+                            artUri = track.albumArtUri,
+                            modifier = Modifier.fillMaxSize(),
+                        )
                     }
 
                     Spacer(Modifier.width(12.dp))

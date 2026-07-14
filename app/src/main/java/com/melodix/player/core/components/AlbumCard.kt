@@ -54,21 +54,10 @@ fun AlbumCard(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                if (artUri != null) {
-                    AsyncImage(
-                        model = artUri,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Rounded.MusicNote,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
-                        modifier = Modifier.size(40.dp),
-                    )
-                }
+                AlbumArtImage(
+                    artUri = artUri,
+                    modifier = Modifier.fillMaxSize(),
+                )
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)

@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 
 data class HomeUiState(
     val recentlyPlayed: List<Track> = emptyList(),
+    val recentlyAdded: List<Track> = emptyList(),
     val quickPicks: List<Track> = emptyList(),
     val greeting: String = "",
     val isLoading: Boolean = true,
@@ -45,8 +46,10 @@ class HomeViewModel(
                 val byId = tracks.associateBy { it.id }
                 // Real play history first; fall back to recently-added while history is empty.
                 val recent = historyIds.mapNotNull { byId[it] }.ifEmpty { tracks.take(10) }
+                val recentlyAdded = tracks.sortedByDescending { it.dateAdded }.take(10)
                 HomeUiState(
                     recentlyPlayed = recent.take(10),
+                    recentlyAdded = recentlyAdded,
                     quickPicks = tracks.drop(10).take(20).ifEmpty { tracks.take(20) },
                     greeting = _uiState.value.greeting,
                     isLoading = false,

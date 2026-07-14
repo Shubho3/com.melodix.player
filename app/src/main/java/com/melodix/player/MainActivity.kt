@@ -52,10 +52,12 @@ class MainActivity : ComponentActivity() {
             // null until DataStore resolves — gate routing so onboarding never flashes for returning users.
             val theme by settingsRepository.getTheme()
                 .collectAsStateWithLifecycle(initialValue = null)
+            val customColors by settingsRepository.getCustomThemeColors()
+                .collectAsStateWithLifecycle(initialValue = null)
             val onboardingComplete by settingsRepository.isOnboardingComplete()
                 .collectAsStateWithLifecycle(initialValue = null)
 
-            MelodixTheme(appTheme = theme ?: AppTheme.MONO) {
+            MelodixTheme(appTheme = theme ?: AppTheme.MONO, customColors = customColors) {
                 val resolvedOnboarding = onboardingComplete
                 if (theme == null || resolvedOnboarding == null) {
                     MelodixSplash()

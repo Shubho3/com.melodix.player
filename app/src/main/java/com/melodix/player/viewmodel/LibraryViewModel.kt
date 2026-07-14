@@ -4,20 +4,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.melodix.player.model.Album
 import com.melodix.player.model.Artist
+import com.melodix.player.model.SortSpec
 import com.melodix.player.model.Track
 import com.melodix.player.repo.MusicRepository
+import com.melodix.player.repo.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 enum class LibraryTab { SONGS, ALBUMS, ARTISTS, PLAYLISTS }
-enum class SortOrder { RECENTLY_ADDED, TITLE, ARTIST }
 
 data class LibraryUiState(
     val selectedTab: LibraryTab = LibraryTab.SONGS,
-    val sortOrder: SortOrder = SortOrder.RECENTLY_ADDED,
+    val sortSpec: SortSpec = SortSpec(),
     val tracks: List<Track> = emptyList(),
     val albums: List<Album> = emptyList(),
     val artists: List<Artist> = emptyList(),
@@ -26,6 +28,7 @@ data class LibraryUiState(
 
 class LibraryViewModel(
     private val musicRepository: MusicRepository,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())
@@ -39,15 +42,29 @@ class LibraryViewModel(
         _uiState.value = _uiState.value.copy(selectedTab = tab)
     }
 
-    fun setSortOrder(order: SortOrder) {
-        _uiState.value = _uiState.value.copy(sortOrder = order)
+    fun setSortSpec(spec: SortSpec) {
+        viewModelScope.launch { settingsRepository.setSortSpec(spec) }
     }
 
     private fun loadAll() {
         viewModelScope.launch {
-            musicRepository.getTracks()
+            combine(
+                musicRepository.getTracks(),
+                settingsRepository.getSortSpec(),
+            ) { tracks, spec ->
+                val sorted = tracks.sortedWith(
+                    spec.comparator(Track::title, Track::artist, Track::duration, Track::dateAdded),
+                )
+                spec to sorted
+            }
                 .catch { }
-                .collect { _uiState.value = _uiState.value.copy(tracks = it, isLoading = false) }
+                .collect { (spec, sorted) ->
+                    _uiState.value = _uiState.value.copy(
+                        sortSpec = spec,
+                        tracks = sorted,
+                        isLoading = false,
+                    )
+                }
         }
         viewModelScope.launch {
             musicRepository.getAlbums()

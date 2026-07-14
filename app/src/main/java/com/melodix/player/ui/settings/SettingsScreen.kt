@@ -7,6 +7,8 @@ import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,10 +18,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,9 +39,13 @@ import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Colorize
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -67,9 +75,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.melodix.player.R
+import com.melodix.player.core.components.ColorPicker
+import com.melodix.player.core.components.MelodixButton
 import com.melodix.player.core.theme.AppTheme
+import com.melodix.player.core.theme.buildCustomScheme
 import com.melodix.player.core.theme.displayName
 import com.melodix.player.core.theme.toColorScheme
+import com.melodix.player.model.CustomThemeColors
+import com.melodix.player.model.MusicFolder
 import com.melodix.player.viewmodel.SettingsViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -82,6 +95,9 @@ fun SettingsScreen(
 
     var showThemePicker by remember { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
+    var showMinLength by remember { mutableStateOf(false) }
+    var showFolders by remember { mutableStateOf(false) }
+    var showCustomTheme by remember { mutableStateOf(false) }
 
     val versionName = remember {
         runCatching {
@@ -92,9 +108,13 @@ fun SettingsScreen(
     if (showThemePicker) {
         ThemePickerSheet(
             selected = state.selectedTheme,
-            onSelect = {
-                viewModel.selectTheme(it)
+            onSelect = { theme ->
                 showThemePicker = false
+                if (theme == AppTheme.CUSTOM) {
+                    showCustomTheme = true
+                } else {
+                    viewModel.selectTheme(theme)
+                }
             },
             onDismiss = { showThemePicker = false },
         )
@@ -102,6 +122,37 @@ fun SettingsScreen(
 
     if (showLicenses) {
         LicensesDialog(onDismiss = { showLicenses = false })
+    }
+
+    if (showMinLength) {
+        MinLengthSheet(
+            selectedSeconds = state.minDurationSec,
+            onSelect = {
+                viewModel.setMinDuration(it)
+                showMinLength = false
+            },
+            onDismiss = { showMinLength = false },
+        )
+    }
+
+    if (showFolders) {
+        FoldersSheet(
+            folders = state.folders,
+            excludedIds = state.excludedFolderIds,
+            onToggle = { id, excluded -> viewModel.setFolderExcluded(id, excluded) },
+            onDismiss = { showFolders = false },
+        )
+    }
+
+    if (showCustomTheme) {
+        CustomThemeSheet(
+            initial = state.customThemeColors,
+            onSave = {
+                viewModel.saveCustomTheme(it)
+                showCustomTheme = false
+            },
+            onDismiss = { showCustomTheme = false },
+        )
     }
 
     LazyColumn(
@@ -158,6 +209,20 @@ fun SettingsScreen(
                     isSyncing = state.isSyncing,
                     didSync = state.didSync,
                     onClick = { viewModel.syncLibrary() },
+                )
+                SettingsDivider()
+                SettingsItem(
+                    icon = Icons.Rounded.Timer,
+                    title = "Minimum song length",
+                    subtitle = minLengthLabel(state.minDurationSec),
+                    onClick = { showMinLength = true },
+                )
+                SettingsDivider()
+                SettingsItem(
+                    icon = Icons.Rounded.Folder,
+                    title = "Folders",
+                    subtitle = foldersSubtitle(state.folders, state.excludedFolderIds),
+                    onClick = { showFolders = true },
                 )
             }
         }
@@ -565,4 +630,254 @@ private fun SettingsDivider() {
         modifier = Modifier.padding(horizontal = 54.dp),
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
     )
+}
+
+private fun minLengthLabel(seconds: Int): String = when {
+    seconds <= 0 -> "Off"
+    seconds < 60 -> "${seconds}s"
+    else -> "${seconds / 60} min"
+}
+
+private fun foldersSubtitle(folders: List<MusicFolder>, excluded: Set<Long>): String {
+    if (folders.isEmpty()) return "All folders"
+    val included = folders.count { it.id !in excluded }
+    return "$included of ${folders.size} folders shown"
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MinLengthSheet(
+    selectedSeconds: Int,
+    onSelect: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState()
+    val options = listOf(0, 30, 60, 120, 300)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+    ) {
+        Column(modifier = Modifier.padding(bottom = 32.dp)) {
+            Text(
+                text = "Minimum song length",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+            Text(
+                text = "Hide tracks shorter than this everywhere.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 24.dp),
+            )
+            Spacer(Modifier.height(8.dp))
+            options.forEach { seconds ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect(seconds) }
+                        .padding(horizontal = 24.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = minLengthLabel(seconds),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (seconds == selectedSeconds) {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = "Selected",
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FoldersSheet(
+    folders: List<MusicFolder>,
+    excludedIds: Set<Long>,
+    onToggle: (Long, Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp)) {
+            Text(
+                text = "Folders",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+            Text(
+                text = "Unchecked folders are hidden from your library.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 24.dp),
+            )
+            Spacer(Modifier.height(8.dp))
+            if (folders.isEmpty()) {
+                Text(
+                    text = "No music folders found",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(24.dp),
+                )
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
+                    items(folders, key = { it.id }) { folder ->
+                        val included = folder.id !in excludedIds
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onToggle(folder.id, included) }
+                                .padding(horizontal = 20.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(
+                                checked = included,
+                                onCheckedChange = { checked -> onToggle(folder.id, !checked) },
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = folder.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text = "${folder.trackCount} songs",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CustomThemeSheet(
+    initial: CustomThemeColors?,
+    onSave: (CustomThemeColors) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var accent by remember { mutableStateOf(initial?.accent ?: 0xFF6750A4.toInt()) }
+    var background by remember { mutableStateOf(initial?.background ?: 0xFFFFFBFE.toInt()) }
+    var text by remember { mutableStateOf(initial?.text ?: 0xFF1C1B1F.toInt()) }
+    val colors = CustomThemeColors(accent, background, text)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
+        ) {
+            Text(
+                text = "Custom theme",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
+            Text(
+                text = "Pick your colors — the rest of the palette is generated.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(16.dp))
+            CustomThemePreview(colors)
+            Spacer(Modifier.height(20.dp))
+            ColorPicker(label = "Accent", color = accent, onColorChange = { accent = it })
+            Spacer(Modifier.height(16.dp))
+            ColorPicker(label = "Background", color = background, onColorChange = { background = it })
+            Spacer(Modifier.height(16.dp))
+            ColorPicker(label = "Text", color = text, onColorChange = { text = it })
+            Spacer(Modifier.height(24.dp))
+            MelodixButton(text = "Save theme", onClick = { onSave(colors) })
+        }
+    }
+}
+
+@Composable
+private fun CustomThemePreview(colors: CustomThemeColors) {
+    val scheme = buildCustomScheme(colors)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(scheme.surface)
+            .border(1.dp, scheme.outlineVariant, RoundedCornerShape(16.dp))
+            .padding(16.dp),
+    ) {
+        Text(
+            text = "Preview",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = scheme.onSurface,
+        )
+        Text(
+            text = "Sample subtitle text",
+            style = MaterialTheme.typography.bodySmall,
+            color = scheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(scheme.primary)
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+            ) {
+                Text(
+                    text = "Play",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = scheme.onPrimary,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(scheme.secondary),
+            )
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(scheme.tertiary),
+            )
+        }
+    }
 }

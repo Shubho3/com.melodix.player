@@ -8,11 +8,16 @@ import android.os.Environment
 import android.provider.MediaStore
 import com.melodix.player.model.Album
 import com.melodix.player.model.Artist
+import com.melodix.player.model.LibraryFilter
+import com.melodix.player.model.MusicFolder
 import com.melodix.player.model.Track
 import com.melodix.player.repo.MusicRepository
+import com.melodix.player.repo.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -20,6 +25,7 @@ import kotlinx.coroutines.withContext
 
 class MusicRepositoryImpl(
     private val context: Context,
+    private val settingsRepository: SettingsRepository,
 ) : MusicRepository {
 
     private val contentResolver = context.contentResolver
@@ -30,14 +36,29 @@ class MusicRepositoryImpl(
     // Bumping this re-runs the MediaStore queries for every active collector.
     private val refreshTrigger = MutableStateFlow(0)
 
+    // The active global filter, derived from user settings.
+    private val libraryFilter: Flow<LibraryFilter> =
+        combine(
+            settingsRepository.getMinDurationSec(),
+            settingsRepository.getExcludedFolderIds(),
+        ) { minSec, excluded -> LibraryFilter(minSec * 1000L, excluded) }
+
+    private fun List<Track>.applyFilter(filter: LibraryFilter): List<Track> =
+        filter { filter.matches(it.duration, it.folderId) }
+
     override fun getTracks(): Flow<List<Track>> =
-        refreshTrigger.map { queryTracks() }.flowOn(Dispatchers.IO)
+        combine(refreshTrigger, libraryFilter) { _, filter ->
+            queryTracks().applyFilter(filter)
+        }.flowOn(Dispatchers.IO)
 
     override fun getAlbums(): Flow<List<Album>> =
         refreshTrigger.map { queryAlbums() }.flowOn(Dispatchers.IO)
 
     override fun getArtists(): Flow<List<Artist>> =
         refreshTrigger.map { queryArtists() }.flowOn(Dispatchers.IO)
+
+    override fun getFolders(): Flow<List<MusicFolder>> =
+        refreshTrigger.map { queryFolders() }.flowOn(Dispatchers.IO)
 
     override fun refresh() {
         refreshTrigger.value++
@@ -60,15 +81,18 @@ class MusicRepositoryImpl(
     }
 
     override fun getTracksByAlbum(albumId: Long): Flow<List<Track>> = flow {
-        emit(queryTracks().filter { it.albumId == albumId })
+        val filter = libraryFilter.first()
+        emit(queryTracks().filter { it.albumId == albumId }.applyFilter(filter))
     }.flowOn(Dispatchers.IO)
 
     override fun getTracksByArtist(artistName: String): Flow<List<Track>> = flow {
-        emit(queryTracks().filter { it.artist.equals(artistName, ignoreCase = true) })
+        val filter = libraryFilter.first()
+        emit(queryTracks().filter { it.artist.equals(artistName, ignoreCase = true) }.applyFilter(filter))
     }.flowOn(Dispatchers.IO)
 
     override fun getTracksByIds(ids: List<Long>): Flow<List<Track>> = flow {
-        val byId = queryTracks().associateBy { it.id }
+        val filter = libraryFilter.first()
+        val byId = queryTracks().applyFilter(filter).associateBy { it.id }
         // Preserve the requested ordering; skip ids that no longer resolve.
         emit(ids.mapNotNull { byId[it] })
     }.flowOn(Dispatchers.IO)
@@ -82,7 +106,8 @@ class MusicRepositoryImpl(
     }.flowOn(Dispatchers.IO)
 
     override fun searchTracks(query: String): Flow<List<Track>> = flow {
-        emit(queryTracks().filter {
+        val filter = libraryFilter.first()
+        emit(queryTracks().applyFilter(filter).filter {
             it.title.contains(query, ignoreCase = true) ||
                 it.artist.contains(query, ignoreCase = true) ||
                 it.album.contains(query, ignoreCase = true)
@@ -111,6 +136,9 @@ class MusicRepositoryImpl(
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.ALBUM_ID,
             MediaStore.Audio.Media.DURATION,
+            MediaStore.Audio.Media.DATE_ADDED,
+            MediaStore.Audio.Media.BUCKET_ID,
+            MediaStore.Audio.Media.BUCKET_DISPLAY_NAME,
         )
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
         val sortOrder = "${MediaStore.Audio.Media.DATE_ADDED} DESC"
@@ -128,6 +156,9 @@ class MusicRepositoryImpl(
             val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
             val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
             val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+            val dateAddedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+            val bucketIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.BUCKET_ID)
+            val bucketNameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.BUCKET_DISPLAY_NAME)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idCol)
@@ -144,12 +175,28 @@ class MusicRepositoryImpl(
                             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id,
                         ),
                         albumArtUri = ContentUris.withAppendedId(albumArtBaseUri, albumId),
+                        dateAdded = cursor.getLong(dateAddedCol),
+                        folderId = cursor.getLong(bucketIdCol),
+                        folderName = cursor.getString(bucketNameCol) ?: "Unknown",
                     ),
                 )
             }
         }
         return tracks
     }
+
+    /** Distinct folders (buckets) that contain music, with track counts. Unfiltered. */
+    private fun queryFolders(): List<MusicFolder> =
+        queryTracks()
+            .groupBy { it.folderId }
+            .map { (id, folderTracks) ->
+                MusicFolder(
+                    id = id,
+                    name = folderTracks.first().folderName.ifEmpty { "Unknown" },
+                    trackCount = folderTracks.size,
+                )
+            }
+            .sortedBy { it.name.lowercase() }
 
     private fun queryAlbums(): List<Album> {
         val albums = mutableListOf<Album>()

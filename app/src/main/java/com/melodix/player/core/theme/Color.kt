@@ -241,4 +241,7 @@ fun AppTheme.toColorScheme(): ColorScheme = when (this) {
     AppTheme.AQUA -> AquaScheme
     AppTheme.NATURE -> NatureScheme
     AppTheme.TECHNO -> TechnoScheme
+    // Placeholder for theme cards/previews; the real custom scheme is built from stored colors
+    // via buildCustomScheme() at the app root.
+    AppTheme.CUSTOM -> MonoScheme
 }

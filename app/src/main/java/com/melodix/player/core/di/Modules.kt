@@ -33,7 +33,7 @@ val appModule = module {
 
 val repoModule = module {
     single<SettingsRepository> { SettingsRepositoryImpl(get()) }
-    single<MusicRepository> { MusicRepositoryImpl(get()) }
+    single<MusicRepository> { MusicRepositoryImpl(get(), get()) }
     single<PlaylistRepository> { PlaylistRepositoryImpl(get()) }
     single<FavoritesRepository> { FavoritesRepositoryImpl(get()) }
     single<PlayHistoryRepository> { PlayHistoryRepositoryImpl(get()) }

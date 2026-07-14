@@ -71,19 +71,10 @@ fun TrackListItem(
         ) {
             if (isPlaying) {
                 EqualizerBars()
-            } else if (track.albumArtUri != null) {
-                AsyncImage(
-                    model = track.albumArtUri,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
             } else {
-                Icon(
-                    imageVector = Icons.Rounded.MusicNote,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    modifier = Modifier.size(22.dp),
+                AlbumArtImage(
+                    artUri = track.albumArtUri,
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
         }

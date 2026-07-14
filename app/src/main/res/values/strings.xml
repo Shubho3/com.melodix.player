@@ -39,6 +39,7 @@
     <!-- Home Screen -->
     <string name="home_subtitle">Ready for focus.</string>
     <string name="home_recently_played">Recently Played</string>
+    <string name="home_recently_added">Recently Added</string>
     <string name="home_view_all">View All</string>
     <string name="home_quick_picks">Quick Picks</string>
     <string name="home_empty">No music found. Grant media access to get started.</string>

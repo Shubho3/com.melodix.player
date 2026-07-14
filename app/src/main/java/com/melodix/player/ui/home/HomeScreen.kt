@@ -130,6 +130,39 @@ fun HomeScreen(
             }
         }
 
+        if (state.recentlyAdded.isNotEmpty()) {
+            item { Spacer(Modifier.height(32.dp)) }
+
+            item {
+                Text(
+                    text = stringResource(R.string.home_recently_added),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                )
+            }
+
+            item { Spacer(Modifier.height(12.dp)) }
+
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    items(state.recentlyAdded, key = { it.id }) { track ->
+                        AlbumCard(
+                            title = track.title,
+                            subtitle = track.artist,
+                            onClick = { onTrackClick(track, state.recentlyAdded) },
+                            modifier = Modifier.width(152.dp),
+                            artUri = track.albumArtUri,
+                        )
+                    }
+                }
+            }
+        }
+
         if (state.quickPicks.isNotEmpty()) {
             item { Spacer(Modifier.height(36.dp)) }
 

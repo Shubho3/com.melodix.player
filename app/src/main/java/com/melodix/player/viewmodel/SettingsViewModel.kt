@@ -3,6 +3,8 @@ package com.melodix.player.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.melodix.player.core.theme.AppTheme
+import com.melodix.player.model.CustomThemeColors
+import com.melodix.player.model.MusicFolder
 import com.melodix.player.repo.MusicRepository
 import com.melodix.player.repo.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +19,10 @@ data class SettingsUiState(
     val songCount: Int = 0,
     val isSyncing: Boolean = false,
     val didSync: Boolean = false,
+    val minDurationSec: Int = 0,
+    val folders: List<MusicFolder> = emptyList(),
+    val excludedFolderIds: Set<Long> = emptySet(),
+    val customThemeColors: CustomThemeColors? = null,
 )
 
 class SettingsViewModel(
@@ -42,6 +48,41 @@ class SettingsViewModel(
             musicRepository.getTracks()
                 .catch { }
                 .collect { _uiState.value = _uiState.value.copy(songCount = it.size) }
+        }
+        viewModelScope.launch {
+            settingsRepository.getMinDurationSec().collect {
+                _uiState.value = _uiState.value.copy(minDurationSec = it)
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.getExcludedFolderIds().collect {
+                _uiState.value = _uiState.value.copy(excludedFolderIds = it)
+            }
+        }
+        viewModelScope.launch {
+            musicRepository.getFolders()
+                .catch { }
+                .collect { _uiState.value = _uiState.value.copy(folders = it) }
+        }
+        viewModelScope.launch {
+            settingsRepository.getCustomThemeColors().collect {
+                _uiState.value = _uiState.value.copy(customThemeColors = it)
+            }
+        }
+    }
+
+    fun setMinDuration(seconds: Int) {
+        viewModelScope.launch { settingsRepository.setMinDurationSec(seconds) }
+    }
+
+    fun setFolderExcluded(folderId: Long, excluded: Boolean) {
+        viewModelScope.launch { settingsRepository.setFolderExcluded(folderId, excluded) }
+    }
+
+    fun saveCustomTheme(colors: CustomThemeColors) {
+        viewModelScope.launch {
+            settingsRepository.setCustomThemeColors(colors)
+            settingsRepository.saveTheme(AppTheme.CUSTOM)
         }
     }
 
