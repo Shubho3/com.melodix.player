@@ -28,7 +28,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.HelpOutline
+import androidx.compose.material.icons.automirrored.rounded.Login
+import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.CloudSync
+import androidx.compose.material.icons.rounded.FolderShared
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.HighQuality
@@ -62,6 +67,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.melodix.player.R
+import com.melodix.player.core.auth.GoogleAuthClient
 import com.melodix.player.core.components.ColorPicker
 import com.melodix.player.core.components.MelodixButton
 import com.melodix.player.core.theme.AppTheme
@@ -83,15 +90,25 @@ import com.melodix.player.core.theme.displayName
 import com.melodix.player.core.theme.toColorScheme
 import com.melodix.player.model.CustomThemeColors
 import com.melodix.player.model.MusicFolder
+import com.melodix.player.viewmodel.AuthViewModel
 import com.melodix.player.viewmodel.SettingsViewModel
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @Composable
 fun SettingsScreen(
+    onOpenDrivePicker: () -> Unit = {},
+    onOpenCloudSync: () -> Unit = {},
+    onOpenEqualizer: () -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
+    authViewModel: AuthViewModel = koinViewModel(),
+    googleAuthClient: GoogleAuthClient = koinInject(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val user by authViewModel.currentUser.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     var showThemePicker by remember { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
@@ -182,7 +199,7 @@ fun SettingsScreen(
                     icon = Icons.Rounded.Tune,
                     title = stringResource(R.string.settings_equalizer),
                     subtitle = stringResource(R.string.settings_equalizer_sub),
-                    onClick = { openEqualizer(context) },
+                    onClick = onOpenEqualizer,
                 )
             }
         }
@@ -196,6 +213,57 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_theme),
                     subtitle = state.selectedTheme.displayName(),
                     onClick = { showThemePicker = true },
+                )
+            }
+        }
+
+        item { Spacer(Modifier.height(16.dp)) }
+
+        item {
+            SettingsGroup(title = "Cloud Sync") {
+                if (user != null) {
+                    SettingsItem(
+                        icon = Icons.Rounded.AccountCircle,
+                        title = user?.displayName ?: "Signed in",
+                        subtitle = user?.email ?: "",
+                        onClick = { },
+                        showChevron = false,
+                    )
+                    SettingsDivider()
+                    SettingsItem(
+                        icon = Icons.AutoMirrored.Rounded.Logout,
+                        title = "Sign out",
+                        subtitle = "Disconnect this account",
+                        onClick = { authViewModel.signOut() },
+                        showChevron = false,
+                    )
+                } else {
+                    SettingsItem(
+                        icon = Icons.AutoMirrored.Rounded.Login,
+                        title = "Sign in with Google",
+                        subtitle = "Back up and sync across devices",
+                        onClick = {
+                            scope.launch {
+                                googleAuthClient.getGoogleIdToken(context)
+                                    .onSuccess { authViewModel.onGoogleIdToken(it) }
+                                    .onFailure { authViewModel.onSignInError(it.message ?: "Sign-in cancelled") }
+                            }
+                        },
+                    )
+                }
+                SettingsDivider()
+                SettingsItem(
+                    icon = Icons.Rounded.FolderShared,
+                    title = "Google Drive folder",
+                    subtitle = if (state.driveFolderId != null) "Connected" else "Not connected",
+                    onClick = onOpenDrivePicker,
+                )
+                SettingsDivider()
+                SettingsItem(
+                    icon = Icons.Rounded.CloudSync,
+                    title = "Backup & Download",
+                    subtitle = "Sync songs with your Drive folder",
+                    onClick = onOpenCloudSync,
                 )
             }
         }

@@ -30,6 +30,12 @@
     <string name="playlists_title">Smart Playlists</string>
     <string name="playlists_body">Melodix creates playlists based on your listening habits. The more you listen, the smarter it gets.</string>
 
+    <!-- Sign In Step -->
+    <string name="signin_title">Sync Across Devices</string>
+    <string name="signin_body">Sign in with Google to back up your playlists, history, and favorites — and pick up right where you left off on any device.</string>
+    <string name="signin_google">Continue with Google</string>
+    <string name="signin_skip">Maybe later</string>
+
     <!-- Navigation -->
     <string name="nav_home">Home</string>
     <string name="nav_library">Library</string>

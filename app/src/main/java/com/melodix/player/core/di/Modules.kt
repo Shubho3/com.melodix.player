@@ -24,11 +24,34 @@ import com.melodix.player.viewmodel.QueueViewModel
 import com.melodix.player.viewmodel.RecentlyPlayedViewModel
 import com.melodix.player.viewmodel.SearchViewModel
 import com.melodix.player.viewmodel.SettingsViewModel
+import androidx.room.Room
+import com.google.firebase.auth.FirebaseAuth
+import com.melodix.player.core.audio.AudioEffects
+import com.melodix.player.viewmodel.EqualizerViewModel
+import com.google.firebase.firestore.FirebaseFirestore
+import com.melodix.player.repo.sync.SyncCoordinator
+import com.melodix.player.repo.sync.SyncManager
+import com.melodix.player.R
+import com.melodix.player.repo.local.cache.AppDatabase
+import com.melodix.player.core.auth.DriveAuthManager
+import com.melodix.player.core.auth.GoogleAuthClient
+import com.melodix.player.repo.AuthRepository
+import com.melodix.player.repo.CacheRepository
+import com.melodix.player.repo.DriveRepository
+import com.melodix.player.repo.auth.AuthRepositoryImpl
+import com.melodix.player.repo.drive.DriveApi
+import com.melodix.player.repo.drive.DriveRepositoryImpl
+import com.melodix.player.repo.local.cache.CacheRepositoryImpl
+import com.melodix.player.viewmodel.AuthViewModel
+import com.melodix.player.viewmodel.CloudSyncViewModel
+import com.melodix.player.viewmodel.DriveFolderPickerViewModel
+import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
 val appModule = module {
     single { PlaybackController(get()) }
+    single { AudioEffects(get()) }
 }
 
 val repoModule = module {
@@ -39,7 +62,39 @@ val repoModule = module {
     single<PlayHistoryRepository> { PlayHistoryRepositoryImpl(get()) }
 }
 
+val authModule = module {
+    single { FirebaseAuth.getInstance() }
+    single { GoogleAuthClient(androidContext().getString(R.string.default_web_client_id)) }
+    single<AuthRepository> { AuthRepositoryImpl(get()) }
+}
+
+val driveModule = module {
+    single { DriveApi() }
+    single { DriveAuthManager(androidContext()) }
+    single<DriveRepository> { DriveRepositoryImpl(get(), get()) }
+}
+
+val syncModule = module {
+    single { FirebaseFirestore.getInstance() }
+    single { SyncManager(get(), get(), get(), get(), get()) }
+    single { SyncCoordinator(get(), get(), get(), get(), get()) }
+}
+
+val cacheModule = module {
+    single {
+        Room.databaseBuilder(androidContext(), AppDatabase::class.java, "melodix.db")
+            .fallbackToDestructiveMigration(dropAllTables = true)
+            .build()
+    }
+    single { get<AppDatabase>().cachedTrackDao() }
+    single<CacheRepository> { CacheRepositoryImpl(androidContext(), get()) }
+}
+
 val viewModelModule = module {
+    viewModelOf(::AuthViewModel)
+    viewModelOf(::DriveFolderPickerViewModel)
+    viewModelOf(::CloudSyncViewModel)
+    viewModelOf(::EqualizerViewModel)
     viewModelOf(::OnboardingViewModel)
     viewModelOf(::HomeViewModel)
     viewModelOf(::LibraryViewModel)

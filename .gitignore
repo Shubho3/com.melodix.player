@@ -13,3 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Secrets — do not commit (contains API keys / OAuth client ids)
+app/google-services.json
+
+# Release build artifacts
+/app/release/

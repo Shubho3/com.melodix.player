@@ -4,13 +4,18 @@ import android.app.PendingIntent
 import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import com.melodix.player.core.audio.AudioEffects
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
-class PlaybackService : MediaSessionService() {
+class PlaybackService : MediaSessionService(), KoinComponent {
 
     private var mediaSession: MediaSession? = null
+    private val audioEffects: AudioEffects by inject()
 
     override fun onCreate() {
         super.onCreate()
@@ -26,6 +31,14 @@ class PlaybackService : MediaSessionService() {
             // Hold only a CPU wakelock during playback (released on pause) — no network wakelock for local files.
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
+
+        // Attach Melodix's own equalizer to the player's audio session.
+        player.addListener(object : Player.Listener {
+            override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                audioEffects.attach(audioSessionId)
+            }
+        })
+        audioEffects.attach(player.audioSessionId)
 
         val sessionActivityIntent = packageManager
             ?.getLaunchIntentForPackage(packageName)
@@ -52,6 +65,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        audioEffects.release()
         mediaSession?.run {
             player.release()
             release()

@@ -23,6 +23,7 @@ data class SettingsUiState(
     val folders: List<MusicFolder> = emptyList(),
     val excludedFolderIds: Set<Long> = emptySet(),
     val customThemeColors: CustomThemeColors? = null,
+    val driveFolderId: String? = null,
 )
 
 class SettingsViewModel(
@@ -67,6 +68,11 @@ class SettingsViewModel(
         viewModelScope.launch {
             settingsRepository.getCustomThemeColors().collect {
                 _uiState.value = _uiState.value.copy(customThemeColors = it)
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.getDriveFolderId().collect {
+                _uiState.value = _uiState.value.copy(driveFolderId = it)
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.melodix.player.repo
 
+import com.melodix.player.core.audio.EqMode
 import com.melodix.player.core.theme.AppTheme
 import com.melodix.player.model.CustomThemeColors
 import com.melodix.player.model.SortSpec
@@ -28,4 +29,12 @@ interface SettingsRepository {
     /** User-defined custom theme colors; null until set. */
     fun getCustomThemeColors(): Flow<CustomThemeColors?>
     suspend fun setCustomThemeColors(colors: CustomThemeColors)
+
+    /** The Google Drive folder id the user selected to sync from; null until chosen. */
+    fun getDriveFolderId(): Flow<String?>
+    suspend fun setDriveFolderId(id: String)
+
+    /** Selected in-app equalizer preset. */
+    fun getEqMode(): Flow<EqMode>
+    suspend fun setEqMode(mode: EqMode)
 }

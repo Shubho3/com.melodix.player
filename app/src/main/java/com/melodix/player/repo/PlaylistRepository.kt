@@ -11,4 +11,7 @@ interface PlaylistRepository {
     suspend fun deletePlaylist(id: String)
     suspend fun addTrackToPlaylist(playlistId: String, trackId: Long)
     suspend fun removeTrackFromPlaylist(playlistId: String, trackId: Long)
+
+    /** Replace all playlists at once — used by cloud sync to apply a merged set. */
+    suspend fun replaceAll(playlists: List<Playlist>)
 }

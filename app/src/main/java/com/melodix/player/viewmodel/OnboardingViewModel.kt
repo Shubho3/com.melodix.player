@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 
 data class OnboardingUiState(
     val currentStep: Int = 0,
-    val totalSteps: Int = 3,
+    val totalSteps: Int = 4,
     val permissionGranted: Boolean = false,
     val selectedTheme: AppTheme = AppTheme.MONO,
     val themes: ImmutableList<AppTheme> = persistentListOf(

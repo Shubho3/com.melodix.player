@@ -17,8 +17,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.melodix.player.ui.detail.DetailScreen
+import com.melodix.player.ui.drive.CloudSyncScreen
+import com.melodix.player.ui.drive.DriveFolderPickerScreen
 import com.melodix.player.ui.main.MainScreen
 import com.melodix.player.ui.nowplaying.NowPlayingScreen
+import com.melodix.player.ui.settings.EqualizerScreen
 import com.melodix.player.ui.onboarding.OnboardingScreen
 import com.melodix.player.ui.queue.QueueScreen
 import com.melodix.player.viewmodel.AlbumDetailViewModel
@@ -64,7 +67,22 @@ fun NavGraph(startOnboarding: Boolean) {
                 onOpenPlaylist = { navController.navigate(Routes.PlaylistDetail.create(it)) },
                 onOpenLikedSongs = { navController.navigate(Routes.LikedSongs.route) },
                 onOpenRecentlyPlayed = { navController.navigate(Routes.RecentlyPlayed.route) },
+                onOpenDrivePicker = { navController.navigate(Routes.DrivePicker.route) },
+                onOpenCloudSync = { navController.navigate(Routes.CloudSync.route) },
+                onOpenEqualizer = { navController.navigate(Routes.Equalizer.route) },
             )
+        }
+        composable(Routes.Equalizer.route) {
+            EqualizerScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.DrivePicker.route) {
+            DriveFolderPickerScreen(
+                onBack = { navController.popBackStack() },
+                onFolderSelected = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.CloudSync.route) {
+            CloudSyncScreen(onBack = { navController.popBackStack() })
         }
         composable(
             route = Routes.NowPlaying.route,

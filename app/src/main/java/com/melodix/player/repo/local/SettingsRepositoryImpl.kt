@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.melodix.player.core.audio.EqMode
 import com.melodix.player.core.theme.AppTheme
 import com.melodix.player.model.CustomThemeColors
 import com.melodix.player.model.SortKey
@@ -110,6 +111,22 @@ class SettingsRepositoryImpl(
         }
     }
 
+    override fun getDriveFolderId(): Flow<String?> =
+        context.dataStore.data.map { prefs -> prefs[KEY_DRIVE_FOLDER_ID] }
+
+    override suspend fun setDriveFolderId(id: String) {
+        context.dataStore.edit { prefs -> prefs[KEY_DRIVE_FOLDER_ID] = id }
+    }
+
+    override fun getEqMode(): Flow<EqMode> =
+        context.dataStore.data.map { prefs ->
+            prefs[KEY_EQ_MODE]?.let { name -> runCatching { EqMode.valueOf(name) }.getOrNull() } ?: EqMode.NORMAL
+        }
+
+    override suspend fun setEqMode(mode: EqMode) {
+        context.dataStore.edit { prefs -> prefs[KEY_EQ_MODE] = mode.name }
+    }
+
     private companion object {
         val KEY_THEME = stringPreferencesKey("selected_theme")
         val KEY_ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
@@ -121,5 +138,7 @@ class SettingsRepositoryImpl(
         val KEY_CUSTOM_ACCENT = intPreferencesKey("custom_accent")
         val KEY_CUSTOM_BG = intPreferencesKey("custom_background")
         val KEY_CUSTOM_TEXT = intPreferencesKey("custom_text")
+        val KEY_DRIVE_FOLDER_ID = stringPreferencesKey("drive_folder_id")
+        val KEY_EQ_MODE = stringPreferencesKey("eq_mode")
     }
 }

@@ -63,6 +63,10 @@ class PlaylistRepositoryImpl(
         }
     }
 
+    override suspend fun replaceAll(playlists: List<Playlist>) {
+        context.playlistStore.edit { prefs -> prefs[KEY_PLAYLIST_DATA] = serialize(playlists) }
+    }
+
     private suspend fun updateAll(transform: (List<Playlist>) -> List<Playlist>) {
         context.playlistStore.edit { prefs ->
             val current = deserialize(prefs[KEY_PLAYLIST_DATA])

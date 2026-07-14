@@ -6,8 +6,10 @@ import com.melodix.player.model.Album
 import com.melodix.player.model.Artist
 import com.melodix.player.model.SortSpec
 import com.melodix.player.model.Track
+import com.melodix.player.repo.CacheRepository
 import com.melodix.player.repo.MusicRepository
 import com.melodix.player.repo.SettingsRepository
+import com.melodix.player.repo.local.cache.toTrack
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,6 +30,7 @@ data class LibraryUiState(
 
 class LibraryViewModel(
     private val musicRepository: MusicRepository,
+    private val cacheRepository: CacheRepository,
     private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
@@ -50,9 +53,16 @@ class LibraryViewModel(
         viewModelScope.launch {
             combine(
                 musicRepository.getTracks(),
+                cacheRepository.observeCached(),
                 settingsRepository.getSortSpec(),
-            ) { tracks, spec ->
-                val sorted = tracks.sortedWith(
+            ) { tracks, cached, spec ->
+                // Local library + Drive-cached songs, excluding cached copies already present locally
+                // (matched by title + artist).
+                val localKeys = tracks.mapTo(HashSet()) { it.title.lowercase() to it.artist.lowercase() }
+                val cachedOnly = cached.map { it.toTrack() }
+                    .filter { (it.title.lowercase() to it.artist.lowercase()) !in localKeys }
+                val all = tracks + cachedOnly
+                val sorted = all.sortedWith(
                     spec.comparator(Track::title, Track::artist, Track::duration, Track::dateAdded),
                 )
                 spec to sorted

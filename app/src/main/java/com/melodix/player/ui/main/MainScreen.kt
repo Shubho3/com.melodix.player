@@ -76,6 +76,9 @@ fun MainScreen(
     onOpenPlaylist: (String) -> Unit = {},
     onOpenLikedSongs: () -> Unit = {},
     onOpenRecentlyPlayed: () -> Unit = {},
+    onOpenDrivePicker: () -> Unit = {},
+    onOpenCloudSync: () -> Unit = {},
+    onOpenEqualizer: () -> Unit = {},
 ) {
     val tabNavController = rememberNavController()
     val navBackStackEntry by tabNavController.currentBackStackEntryAsState()
@@ -189,7 +192,11 @@ fun MainScreen(
                     )
                 }
                 composable(Tab.Settings.route) {
-                    SettingsScreen()
+                    SettingsScreen(
+                        onOpenDrivePicker = onOpenDrivePicker,
+                        onOpenCloudSync = onOpenCloudSync,
+                        onOpenEqualizer = onOpenEqualizer,
+                    )
                 }
             }
 

@@ -27,6 +27,7 @@ import com.melodix.player.R
 import com.melodix.player.core.components.StepIndicator
 import com.melodix.player.ui.onboarding.components.FeatureIntroStep
 import com.melodix.player.ui.onboarding.components.PermissionStep
+import com.melodix.player.ui.onboarding.components.SignInStep
 import com.melodix.player.ui.onboarding.components.ThemePickerStep
 import com.melodix.player.viewmodel.OnboardingUiEffect
 import com.melodix.player.viewmodel.OnboardingViewModel
@@ -113,7 +114,10 @@ fun OnboardingScreen(
                         onNext = { viewModel.nextStep() },
                     )
                     2 -> FeatureIntroStep(
-                        onGetStarted = { viewModel.completeOnboarding() },
+                        onGetStarted = { viewModel.nextStep() },
+                    )
+                    3 -> SignInStep(
+                        onDone = { viewModel.completeOnboarding() },
                     )
                 }
             }

@@ -24,4 +24,10 @@ sealed class Routes(val route: String) {
     data object LikedSongs : Routes("liked_songs")
 
     data object RecentlyPlayed : Routes("recently_played")
+
+    data object DrivePicker : Routes("drive_picker")
+
+    data object CloudSync : Routes("cloud_sync")
+
+    data object Equalizer : Routes("equalizer")
 }
