@@ -139,6 +139,8 @@ class MusicRepositoryImpl(
             MediaStore.Audio.Media.DATE_ADDED,
             MediaStore.Audio.Media.BUCKET_ID,
             MediaStore.Audio.Media.BUCKET_DISPLAY_NAME,
+            MediaStore.Audio.Media.SIZE,
+            MediaStore.Audio.Media.DATE_MODIFIED,
         )
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
         val sortOrder = "${MediaStore.Audio.Media.DATE_ADDED} DESC"
@@ -159,6 +161,8 @@ class MusicRepositoryImpl(
             val dateAddedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
             val bucketIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.BUCKET_ID)
             val bucketNameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.BUCKET_DISPLAY_NAME)
+            val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
+            val dateModifiedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idCol)
@@ -178,6 +182,8 @@ class MusicRepositoryImpl(
                         dateAdded = cursor.getLong(dateAddedCol),
                         folderId = cursor.getLong(bucketIdCol),
                         folderName = cursor.getString(bucketNameCol) ?: "Unknown",
+                        sizeBytes = cursor.getLong(sizeCol),
+                        dateModified = cursor.getLong(dateModifiedCol),
                     ),
                 )
             }

@@ -38,7 +38,7 @@ class DriveApi(
             do {
                 val url = FILES_URL.toHttpUrl().newBuilder()
                     .addQueryParameter("q", query)
-                    .addQueryParameter("fields", "nextPageToken,files(id,name,mimeType,size,modifiedTime)")
+                    .addQueryParameter("fields", "nextPageToken,files(id,name,mimeType,size,modifiedTime,md5Checksum)")
                     .addQueryParameter("orderBy", "folder,name")
                     .addQueryParameter("pageSize", "200")
                     .addQueryParameter("spaces", "drive")
@@ -57,31 +57,49 @@ class DriveApi(
         }
 
     /** Streams a Drive file's bytes to [dest]. */
-    suspend fun downloadFile(accessToken: String, fileId: String, dest: File) =
-        withContext(Dispatchers.IO) {
-            val url = "$FILES_URL/$fileId".toHttpUrl().newBuilder()
-                .addQueryParameter("alt", "media")
-                .build()
-            val request = Request.Builder().url(url).bearer(accessToken).get().build()
-            client.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) throw DriveHttpException(resp.code, resp.message)
-                dest.outputStream().use { out -> resp.body!!.byteStream().copyTo(out) }
+    suspend fun downloadFile(
+        accessToken: String,
+        fileId: String,
+        dest: File,
+        onProgress: (downloaded: Long, total: Long) -> Unit = { _, _ -> },
+    ) = withContext(Dispatchers.IO) {
+        val url = "$FILES_URL/$fileId".toHttpUrl().newBuilder()
+            .addQueryParameter("alt", "media")
+            .build()
+        val request = Request.Builder().url(url).bearer(accessToken).get().build()
+        client.newCall(request).execute().use { resp ->
+            if (!resp.isSuccessful) throw DriveHttpException(resp.code, resp.message)
+            val total = resp.body!!.contentLength()
+            dest.outputStream().use { out ->
+                resp.body!!.byteStream().use { input ->
+                    val buffer = ByteArray(1 shl 16)
+                    var downloaded = 0L
+                    var read: Int
+                    while (input.read(buffer).also { read = it } != -1) {
+                        out.write(buffer, 0, read)
+                        downloaded += read
+                        onProgress(downloaded, total)
+                    }
+                }
             }
-            Unit
         }
+        Unit
+    }
 
-    /** Uploads [content] as a new file named [name] into [folderId]. Requires a write scope. */
+    /** Uploads a new file named [name] into [folderId], streaming from [openStream]. Requires a write scope. */
     suspend fun uploadFile(
         accessToken: String,
         folderId: String,
         name: String,
         mimeType: String,
-        content: ByteArray,
+        contentLength: Long,
+        openStream: () -> java.io.InputStream,
+        onProgress: (uploaded: Long, total: Long) -> Unit = { _, _ -> },
     ): DriveFile = withContext(Dispatchers.IO) {
         val metadata = json.encodeToString(FileMetadata(name = name, parents = listOf(folderId)))
         val body = MultipartBody.Builder().setType("multipart/related".toMediaType())
             .addPart(metadata.toRequestBody("application/json; charset=UTF-8".toMediaType()))
-            .addPart(content.toRequestBody(mimeType.toMediaType()))
+            .addPart(ProgressRequestBody(mimeType.toMediaType(), contentLength, openStream, onProgress))
             .build()
         val url = UPLOAD_URL.toHttpUrl().newBuilder()
             .addQueryParameter("uploadType", "multipart")

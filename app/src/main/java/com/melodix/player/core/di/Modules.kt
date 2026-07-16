@@ -38,6 +38,9 @@ import com.melodix.player.core.auth.GoogleAuthClient
 import com.melodix.player.repo.AuthRepository
 import com.melodix.player.repo.CacheRepository
 import com.melodix.player.repo.DriveRepository
+import com.melodix.player.repo.StorageRepository
+import com.melodix.player.repo.local.StorageRepositoryImpl
+import com.melodix.player.viewmodel.StorageViewModel
 import com.melodix.player.repo.auth.AuthRepositoryImpl
 import com.melodix.player.repo.drive.DriveApi
 import com.melodix.player.repo.drive.DriveRepositoryImpl
@@ -78,6 +81,7 @@ val syncModule = module {
     single { FirebaseFirestore.getInstance() }
     single { SyncManager(get(), get(), get(), get(), get()) }
     single { SyncCoordinator(get(), get(), get(), get(), get()) }
+    single { com.melodix.player.repo.sync.TransferCenter(androidContext()) }
 }
 
 val cacheModule = module {
@@ -87,7 +91,11 @@ val cacheModule = module {
             .build()
     }
     single { get<AppDatabase>().cachedTrackDao() }
+    single { get<AppDatabase>().localFileHashDao() }
+    single<com.melodix.player.repo.local.hash.AudioHasher> { com.melodix.player.repo.local.hash.ContentResolverAudioHasher(androidContext()) }
+    single<com.melodix.player.repo.local.hash.LocalHashRepository> { com.melodix.player.repo.local.hash.LocalHashRepositoryImpl(get()) }
     single<CacheRepository> { CacheRepositoryImpl(androidContext(), get()) }
+    single<StorageRepository> { StorageRepositoryImpl(androidContext(), get()) }
 }
 
 val viewModelModule = module {
@@ -101,6 +109,7 @@ val viewModelModule = module {
     viewModelOf(::SearchViewModel)
     viewModelOf(::NowPlayingViewModel)
     viewModelOf(::SettingsViewModel)
+    viewModelOf(::StorageViewModel)
     viewModelOf(::QueueViewModel)
     viewModelOf(::PlaylistViewModel)
     viewModelOf(::AlbumDetailViewModel)

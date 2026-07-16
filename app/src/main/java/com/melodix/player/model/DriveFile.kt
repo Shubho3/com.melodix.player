@@ -10,6 +10,7 @@ data class DriveFile(
     val mimeType: String,
     val size: String? = null,          // Drive returns size as a string; null for folders
     val modifiedTime: String? = null,
+    val md5Checksum: String? = null,   // Drive-computed MD5 of the file bytes; null for folders
 ) {
     val isFolder: Boolean get() = mimeType == "application/vnd.google-apps.folder"
     val sizeBytes: Long get() = size?.toLongOrNull() ?: 0L

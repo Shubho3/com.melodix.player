@@ -60,8 +60,8 @@ fun MiniPlayer(
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.inverseSurface,
+            shape = RoundedCornerShape(6.dp),
+            color = MaterialTheme.colorScheme.primary,
             shadowElevation = 8.dp,
             tonalElevation = 4.dp,
         ) {

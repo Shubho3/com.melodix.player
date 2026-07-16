@@ -11,6 +11,8 @@ interface CacheRepository {
     suspend fun isCached(driveFileId: String): Boolean
     suspend fun save(track: CachedTrack)
     suspend fun remove(driveFileId: String)
+    /** Deletes every cached track: removes all downloaded files and clears the metadata table. */
+    suspend fun clear()
     /** Directory downloaded audio is written to. */
     fun cacheDir(): File
 }

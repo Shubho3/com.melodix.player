@@ -22,4 +22,7 @@ interface CachedTrackDao {
 
     @Query("DELETE FROM cached_tracks WHERE driveFileId = :id")
     suspend fun delete(id: String)
+
+    @Query("DELETE FROM cached_tracks")
+    suspend fun deleteAll()
 }

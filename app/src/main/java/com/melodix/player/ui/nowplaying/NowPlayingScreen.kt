@@ -1,5 +1,7 @@
 package com.melodix.player.ui.nowplaying
 
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -21,21 +23,23 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Bedtime
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.DropdownMenu
@@ -64,6 +68,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -75,6 +80,7 @@ import coil3.compose.AsyncImage
 import com.melodix.player.R
 import com.melodix.player.core.components.AlbumArtImage
 import com.melodix.player.core.components.formatDuration
+import com.melodix.player.model.Track
 import com.melodix.player.viewmodel.NowPlayingViewModel
 import com.melodix.player.viewmodel.RepeatMode
 
@@ -82,11 +88,32 @@ import com.melodix.player.viewmodel.RepeatMode
 fun NowPlayingScreen(
     onBack: () -> Unit,
     onOpenQueue: () -> Unit = {},
+    onOpenEqualizer: () -> Unit = {},
+    onOpenAlbum: (Long) -> Unit = {},
     viewModel: NowPlayingViewModel,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val track = state.currentTrack
+    val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
+    var showSleepDialog by remember { mutableStateOf(false) }
+    var showDetails by remember { mutableStateOf(false) }
+    var showPlaylistSheet by remember { mutableStateOf(false) }
+
+    if (showSleepDialog) {
+        SleepTimerDialog(
+            remainingMs = state.sleepTimerRemainingMs,
+            onStart = { viewModel.setSleepTimer(it) },
+            onStop = { viewModel.cancelSleepTimer() },
+            onDismiss = { showSleepDialog = false },
+        )
+    }
+    if (showDetails && track != null) {
+        SongDetailsDialog(track = track, onDismiss = { showDetails = false })
+    }
+    if (showPlaylistSheet && track != null) {
+        AddToPlaylistSheet(track = track, onDismiss = { showPlaylistSheet = false })
+    }
 
     Box(
         modifier = Modifier
@@ -127,44 +154,70 @@ fun NowPlayingScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     letterSpacing = 3.sp,
                 )
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Sleep timer — dedicated icon that tints to the accent while a timer is running.
+                    IconButton(onClick = { showSleepDialog = true }) {
                         Icon(
-                            imageVector = if (state.sleepTimerMinutes > 0) Icons.Rounded.Bedtime
-                            else Icons.Rounded.MoreVert,
-                            contentDescription = "More",
-                            tint = if (state.sleepTimerMinutes > 0) MaterialTheme.colorScheme.primary
+                            imageVector = Icons.Rounded.Bedtime,
+                            contentDescription = "Sleep timer",
+                            tint = if (state.sleepTimerRemainingMs > 0) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                    ) {
-                        Text(
-                            text = "Sleep timer",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
-                        listOf(0, 15, 30, 45, 60).forEach { minutes ->
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Rounded.MoreVert,
+                                contentDescription = "More",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                        ) {
                             DropdownMenuItem(
-                                text = {
-                                    Text(if (minutes == 0) "Off" else "$minutes minutes")
+                                text = { Text("Add to playlist") },
+                                leadingIcon = {
+                                    Icon(Icons.AutoMirrored.Rounded.PlaylistAdd, contentDescription = null)
                                 },
+                                enabled = track != null,
                                 onClick = {
-                                    viewModel.setSleepTimer(minutes)
                                     showMenu = false
+                                    showPlaylistSheet = true
                                 },
-                                trailingIcon = {
-                                    if (state.sleepTimerMinutes == minutes) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Check,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                        )
-                                    }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Go to album") },
+                                leadingIcon = {
+                                    Icon(Icons.Rounded.Album, contentDescription = null)
+                                },
+                                enabled = track != null,
+                                onClick = {
+                                    showMenu = false
+                                    track?.let { onOpenAlbum(it.albumId) }
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Song details") },
+                                leadingIcon = {
+                                    Icon(Icons.Rounded.Info, contentDescription = null)
+                                },
+                                enabled = track != null,
+                                onClick = {
+                                    showMenu = false
+                                    showDetails = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Share") },
+                                leadingIcon = {
+                                    Icon(Icons.Rounded.Share, contentDescription = null)
+                                },
+                                enabled = track != null,
+                                onClick = {
+                                    showMenu = false
+                                    track?.let { shareTrack(context, it) }
                                 },
                             )
                         }
@@ -357,13 +410,24 @@ fun NowPlayingScreen(
                 ActionButton(
                     icon = Icons.Rounded.GraphicEq,
                     label = stringResource(R.string.now_playing_eq),
-                    onClick = { },
+                    onClick = onOpenEqualizer,
                 )
             }
 
             Spacer(Modifier.height(8.dp))
         }
     }
+}
+
+/** Shares the track's audio file via the Android share sheet. */
+private fun shareTrack(context: Context, track: Track) {
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "audio/*"
+        putExtra(Intent.EXTRA_STREAM, track.uri)
+        putExtra(Intent.EXTRA_TITLE, track.title)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(intent, "Share song"))
 }
 
 @Composable

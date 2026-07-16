@@ -25,6 +25,7 @@ data class NowPlayingUiState(
     val repeatMode: RepeatMode = RepeatMode.OFF,
     val isLiked: Boolean = false,
     val sleepTimerMinutes: Int = 0,
+    val sleepTimerRemainingMs: Long = 0L,
 )
 
 enum class RepeatMode { OFF, ALL, ONE }
@@ -53,6 +54,7 @@ class NowPlayingViewModel(
                     repeatMode = ps.repeatMode.toUiRepeatMode(),
                     isLiked = ps.currentTrack?.id in favorites,
                     sleepTimerMinutes = ps.sleepTimerMinutes,
+                    sleepTimerRemainingMs = ps.sleepTimerRemainingMs,
                 )
             }.collect { _uiState.value = it }
         }
@@ -76,6 +78,10 @@ class NowPlayingViewModel(
 
     fun setSleepTimer(minutes: Int) {
         playbackController.setSleepTimer(minutes)
+    }
+
+    fun cancelSleepTimer() {
+        playbackController.cancelSleepTimer()
     }
 
     fun togglePlayPause() {

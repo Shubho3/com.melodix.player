@@ -1,5 +1,6 @@
 *.iml
 .gradle
+.kotlin
 /local.properties
 /.idea/caches
 /.idea/libraries
@@ -16,6 +17,12 @@ local.properties
 
 # Secrets — do not commit (contains API keys / OAuth client ids)
 app/google-services.json
+
+# Release signing — keep credentials and keystore out of version control
+keystore.properties
+/app/app
+*.jks
+*.keystore
 
 # Release build artifacts
 /app/release/

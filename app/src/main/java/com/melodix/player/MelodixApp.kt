@@ -4,8 +4,10 @@ import android.app.Application
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.request.crossfade
+import okio.Path.Companion.toPath
 import com.melodix.player.core.di.appModule
 import com.melodix.player.core.di.authModule
 import com.melodix.player.core.di.cacheModule
@@ -37,6 +39,8 @@ class MelodixApp : Application(), SingletonImageLoader.Factory {
     }
 
     // Cap Coil's album-art memory cache (default is 25% of app RAM) and crossfade for smoothness.
+    // A bounded disk cache under cacheDir/image_cache persists cover art across launches and is what
+    // the Storage screen's "Album art" category measures and clears (see StorageRepositoryImpl).
     override fun newImageLoader(context: PlatformContext): ImageLoader =
         ImageLoader.Builder(context)
             .memoryCache {
@@ -44,6 +48,17 @@ class MelodixApp : Application(), SingletonImageLoader.Factory {
                     .maxSizePercent(context, 0.15)
                     .build()
             }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(context.cacheDir.resolve(IMAGE_CACHE_DIR).path.toPath())
+                    .maxSizeBytes(256L * 1024 * 1024)
+                    .build()
+            }
             .crossfade(true)
             .build()
+
+    companion object {
+        /** Coil disk-cache subdirectory of [android.content.Context.getCacheDir]. */
+        const val IMAGE_CACHE_DIR = "image_cache"
+    }
 }

@@ -23,21 +23,41 @@ class UploadWorker(context: Context, params: WorkerParameters) :
         val folderId = inputData.getString(KEY_FOLDER_ID) ?: return Result.failure()
         return try {
             val token = driveRepository.accessToken().getOrThrow()
-            // NOTE: reads the whole file into memory. Fine for typical tracks; stream for very large files.
-            val bytes = applicationContext.contentResolver.openInputStream(Uri.parse(uriStr))
-                ?.use { it.readBytes() } ?: return Result.failure()
-            driveApi.uploadFile(token, folderId, name, mimeType, bytes)
+            val uri = Uri.parse(uriStr)
+            val size = inputData.getLong(KEY_SIZE, -1L).let { if (it > 0) it else resolveSize(uri) }
+            var lastPct = -1
+            driveApi.uploadFile(
+                accessToken = token,
+                folderId = folderId,
+                name = name,
+                mimeType = mimeType,
+                contentLength = size,
+                openStream = { applicationContext.contentResolver.openInputStream(uri)!! },
+            ) { uploaded, total ->
+                val pct = if (total > 0) (uploaded * 100 / total).toInt() else 0
+                if (pct != lastPct) {
+                    lastPct = pct
+                    setProgressAsync(androidx.work.workDataOf(KEY_PROGRESS to pct))
+                }
+            }
             Result.success()
         } catch (e: Exception) {
             if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.failure()
         }
     }
 
+    private fun resolveSize(uri: Uri): Long =
+        runCatching {
+            applicationContext.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length }
+        }.getOrNull()?.takeIf { it > 0 } ?: -1L
+
     companion object {
         const val KEY_URI = "uri"
         const val KEY_NAME = "name"
         const val KEY_MIME = "mime"
         const val KEY_FOLDER_ID = "folder_id"
+        const val KEY_SIZE = "size"
+        const val KEY_PROGRESS = "progress"
         private const val MAX_ATTEMPTS = 3
     }
 }

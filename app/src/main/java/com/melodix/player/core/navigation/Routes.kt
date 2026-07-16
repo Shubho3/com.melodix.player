@@ -30,4 +30,6 @@ sealed class Routes(val route: String) {
     data object CloudSync : Routes("cloud_sync")
 
     data object Equalizer : Routes("equalizer")
+
+    data object Storage : Routes("storage")
 }

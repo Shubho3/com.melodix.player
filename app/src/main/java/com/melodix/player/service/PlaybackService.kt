@@ -2,9 +2,11 @@ package com.melodix.player.service
 
 import android.app.PendingIntent
 import android.content.Intent
+import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -17,6 +19,7 @@ class PlaybackService : MediaSessionService(), KoinComponent {
     private var mediaSession: MediaSession? = null
     private val audioEffects: AudioEffects by inject()
 
+    @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
         val player = ExoPlayer.Builder(this)
@@ -59,7 +62,10 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = mediaSession?.player ?: return
-        if (!player.playWhenReady || player.mediaItemCount == 0) {
+        // Keep the service (and its media notification) alive whenever there's something to control —
+        // even when paused — so the user can resume from the notification after swiping the app away.
+        // Only tear down when the queue is empty and there's nothing left to resume.
+        if (player.mediaItemCount == 0) {
             stopSelf()
         }
     }

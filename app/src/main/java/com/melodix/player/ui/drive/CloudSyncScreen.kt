@@ -17,10 +17,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,16 +33,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.melodix.player.core.components.MelodixButton
 import com.melodix.player.core.components.MelodixOutlinedButton
 import com.melodix.player.viewmodel.CloudSyncViewModel
-import com.melodix.player.viewmodel.SyncStatus
-import com.melodix.player.viewmodel.WorkQueue
 import org.koin.androidx.compose.koinViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun CloudSyncScreen(
     onBack: () -> Unit,
+    onOpenTransfers: () -> Unit = {},
     viewModel: CloudSyncViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -78,23 +72,6 @@ fun CloudSyncScreen(
                 else MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Spacer(Modifier.height(24.dp))
-
-            // ── Firestore data (favorites / history / playlists) ──
-            SectionLabel("Your data")
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                StatChip("Favorites", state.favoritesCount, Modifier.weight(1f))
-                StatChip("History", state.historyCount, Modifier.weight(1f))
-                StatChip("Playlists", state.playlistCount, Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(12.dp))
-            SyncStatusRow(state.syncStatus)
-            Spacer(Modifier.height(12.dp))
-            MelodixButton(
-                text = "Sync now",
-                onClick = { viewModel.syncNow() },
-            )
-
             Spacer(Modifier.height(28.dp))
 
             // ── Google Drive ──
@@ -112,19 +89,10 @@ fun CloudSyncScreen(
                 Spacer(Modifier.height(10.dp))
                 StatCard("Local songs not on Drive", state.localOnlyCount)
 
-                if (state.downloads.total > 0) {
-                    Spacer(Modifier.height(16.dp))
-                    QueueRow("Downloads", state.downloads)
-                }
-                if (state.uploads.total > 0) {
-                    Spacer(Modifier.height(12.dp))
-                    QueueRow("Uploads", state.uploads)
-                }
-
                 Spacer(Modifier.height(24.dp))
-                MelodixButton(text = "Download from Drive", onClick = { viewModel.downloadAll() })
+                MelodixButton(text = "Download from Drive", onClick = { viewModel.downloadAll(); onOpenTransfers() })
                 Spacer(Modifier.height(12.dp))
-                MelodixOutlinedButton(text = "Back up local songs to Drive", onClick = { viewModel.backupLocalOnly() })
+                MelodixOutlinedButton(text = "Back up local songs to Drive", onClick = { viewModel.backupLocalOnly(); onOpenTransfers() })
             }
 
             state.message?.let {
@@ -149,46 +117,6 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun SyncStatusRow(status: SyncStatus) {
-    when (status) {
-        SyncStatus.Idle -> StatusText("Not synced yet", MaterialTheme.colorScheme.onSurfaceVariant)
-        SyncStatus.Syncing -> Row(verticalAlignment = Alignment.CenterVertically) {
-            CircularProgressIndicator(modifier = Modifier.height(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(0.dp))
-            StatusText("  Syncing…", MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        is SyncStatus.Synced -> {
-            val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(status.at))
-            StatusText("Synced ✓  ·  $time", MaterialTheme.colorScheme.primary)
-        }
-        is SyncStatus.Error -> StatusText("Sync failed: ${status.message}", MaterialTheme.colorScheme.error)
-    }
-}
-
-@Composable
-private fun StatusText(text: String, color: androidx.compose.ui.graphics.Color) {
-    Text(text = text, style = MaterialTheme.typography.bodyMedium, color = color)
-}
-
-@Composable
-private fun StatChip(label: String, value: Int, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(value.toString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
 private fun StatCard(label: String, value: Int) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -204,32 +132,5 @@ private fun StatCard(label: String, value: Int) {
             Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
             Text(value.toString(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         }
-    }
-}
-
-@Composable
-private fun QueueRow(label: String, queue: WorkQueue) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(
-                text = "$label · ${queue.done}/${queue.total}" +
-                    if (queue.failed > 0) "  (${queue.failed} failed)" else "",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = if (queue.active) "${queue.percent}%" else if (queue.total > 0) "Done" else "",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
-        Spacer(Modifier.height(6.dp))
-        LinearProgressIndicator(
-            progress = { if (queue.total == 0) 0f else queue.done.toFloat() / queue.total },
-            modifier = Modifier.fillMaxWidth().height(6.dp),
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-        )
     }
 }

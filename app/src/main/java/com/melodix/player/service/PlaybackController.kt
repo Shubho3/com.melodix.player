@@ -32,6 +32,7 @@ data class PlaybackState(
     val queue: List<Track> = emptyList(),
     val currentIndex: Int = -1,
     val sleepTimerMinutes: Int = 0,
+    val sleepTimerRemainingMs: Long = 0L,
 )
 
 /**
@@ -222,19 +223,35 @@ class PlaybackController(context: Context) {
         syncFromPlayer()
     }
 
-    /** Schedules playback to pause after [minutes]; pass 0 to cancel a running timer. */
+    /**
+     * Schedules playback to pause after [minutes], counting down once per second so the UI can show a
+     * live remaining time via [PlaybackState.sleepTimerRemainingMs]. Pass 0 (or use [cancelSleepTimer])
+     * to cancel a running timer.
+     */
     fun setSleepTimer(minutes: Int) {
         sleepJob?.cancel()
         if (minutes <= 0) {
-            _state.value = _state.value.copy(sleepTimerMinutes = 0)
+            _state.value = _state.value.copy(sleepTimerMinutes = 0, sleepTimerRemainingMs = 0L)
             return
         }
-        _state.value = _state.value.copy(sleepTimerMinutes = minutes)
+        val totalMs = minutes * 60_000L
+        _state.value = _state.value.copy(sleepTimerMinutes = minutes, sleepTimerRemainingMs = totalMs)
         sleepJob = scope.launch {
-            delay(minutes * 60_000L)
+            var remaining = totalMs
+            while (remaining > 0) {
+                delay(1_000L)
+                remaining -= 1_000L
+                _state.value = _state.value.copy(sleepTimerRemainingMs = remaining.coerceAtLeast(0L))
+            }
             controller?.pause()
-            _state.value = _state.value.copy(sleepTimerMinutes = 0)
+            _state.value = _state.value.copy(sleepTimerMinutes = 0, sleepTimerRemainingMs = 0L)
         }
+    }
+
+    /** Cancels a running sleep timer, leaving playback untouched. */
+    fun cancelSleepTimer() {
+        sleepJob?.cancel()
+        _state.value = _state.value.copy(sleepTimerMinutes = 0, sleepTimerRemainingMs = 0L)
     }
 
     fun release() {

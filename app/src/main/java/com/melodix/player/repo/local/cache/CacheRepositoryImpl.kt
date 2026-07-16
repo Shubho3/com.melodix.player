@@ -32,6 +32,11 @@ class CacheRepositoryImpl(
         dao.getById(driveFileId)?.let { File(it.localPath).delete() }
         dao.delete(driveFileId)
     }
+
+    override suspend fun clear() {
+        dir.listFiles()?.forEach { it.deleteRecursively() }
+        dao.deleteAll()
+    }
 }
 
 private fun CachedTrackEntity.toDomain() = CachedTrack(

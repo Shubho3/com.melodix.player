@@ -27,7 +27,14 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         return try {
             val token = driveRepository.accessToken().getOrThrow()
             val dest = File(cacheRepository.cacheDir(), fileId)
-            driveApi.downloadFile(token, fileId, dest)
+            var lastPct = -1
+            driveApi.downloadFile(token, fileId, dest) { downloaded, total ->
+                val pct = if (total > 0) (downloaded * 100 / total).toInt() else 0
+                if (pct != lastPct) {
+                    lastPct = pct
+                    setProgressAsync(androidx.work.workDataOf(KEY_PROGRESS to pct))
+                }
+            }
             val meta = extractMeta(dest, fileId)
             cacheRepository.save(
                 CachedTrack(
@@ -74,6 +81,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         const val KEY_FILE_ID = "file_id"
         const val KEY_NAME = "name"
         const val KEY_MIME = "mime"
+        const val KEY_PROGRESS = "progress"
         private const val MAX_ATTEMPTS = 3
     }
 }

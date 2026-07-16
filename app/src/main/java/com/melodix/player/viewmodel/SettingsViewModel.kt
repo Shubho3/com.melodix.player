@@ -7,6 +7,7 @@ import com.melodix.player.model.CustomThemeColors
 import com.melodix.player.model.MusicFolder
 import com.melodix.player.repo.MusicRepository
 import com.melodix.player.repo.SettingsRepository
+import com.melodix.player.repo.StorageRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,11 +25,13 @@ data class SettingsUiState(
     val excludedFolderIds: Set<Long> = emptySet(),
     val customThemeColors: CustomThemeColors? = null,
     val driveFolderId: String? = null,
+    val totalCacheBytes: Long = 0L,
 )
 
 class SettingsViewModel(
     private val settingsRepository: SettingsRepository,
     private val musicRepository: MusicRepository,
+    private val storageRepository: StorageRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -74,6 +77,15 @@ class SettingsViewModel(
             settingsRepository.getDriveFolderId().collect {
                 _uiState.value = _uiState.value.copy(driveFolderId = it)
             }
+        }
+        refreshCacheSize()
+    }
+
+    /** Recomputes the total cache size shown on the Storage row (call again after clearing caches). */
+    fun refreshCacheSize() {
+        viewModelScope.launch {
+            val total = storageRepository.totalBytes()
+            _uiState.value = _uiState.value.copy(totalCacheBytes = total)
         }
     }
 

@@ -19,12 +19,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.melodix.player.core.navigation.NavGraph
 import com.melodix.player.core.theme.AppTheme
@@ -58,6 +61,14 @@ class MainActivity : ComponentActivity() {
                 .collectAsStateWithLifecycle(initialValue = null)
 
             MelodixTheme(appTheme = theme ?: AppTheme.MONO, customColors = customColors) {
+                val lightBars = MaterialTheme.colorScheme.background.luminance() > 0.5f
+                val view = androidx.compose.ui.platform.LocalView.current
+                SideEffect {
+                    val controller = WindowCompat.getInsetsController(window, view)
+                    controller.isAppearanceLightStatusBars = lightBars
+                    controller.isAppearanceLightNavigationBars = lightBars
+                }
+
                 val resolvedOnboarding = onboardingComplete
                 if (theme == null || resolvedOnboarding == null) {
                     MelodixSplash()

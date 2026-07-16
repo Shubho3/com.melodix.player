@@ -1,8 +1,10 @@
 package com.melodix.player.ui.settings
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.media.audiofx.AudioEffect
 import android.net.Uri
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,6 +33,7 @@ import androidx.compose.material.icons.automirrored.rounded.HelpOutline
 import androidx.compose.material.icons.automirrored.rounded.Login
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.FolderShared
@@ -55,7 +58,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
+import android.text.format.Formatter
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Switch
@@ -64,6 +67,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,13 +76,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.melodix.player.R
 import com.melodix.player.core.auth.GoogleAuthClient
@@ -101,6 +107,7 @@ fun SettingsScreen(
     onOpenDrivePicker: () -> Unit = {},
     onOpenCloudSync: () -> Unit = {},
     onOpenEqualizer: () -> Unit = {},
+    onOpenStorage: () -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
     authViewModel: AuthViewModel = koinViewModel(),
     googleAuthClient: GoogleAuthClient = koinInject(),
@@ -109,6 +116,24 @@ fun SettingsScreen(
     val user by authViewModel.currentUser.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // Tracks whether the app is exempt from battery optimization (so background playback survives).
+    var batteryExempt by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
+
+    // Recompute the cache size and battery-exemption state each time Settings resumes (e.g. returning
+    // from the Storage screen after clearing caches, or from the system battery dialog) so the rows
+    // never show a stale figure.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshCacheSize()
+                batteryExempt = isIgnoringBatteryOptimizations(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     var showThemePicker by remember { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
@@ -200,6 +225,17 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_equalizer),
                     subtitle = stringResource(R.string.settings_equalizer_sub),
                     onClick = onOpenEqualizer,
+                )
+                SettingsDivider()
+                SettingsItem(
+                    icon = Icons.Rounded.BatteryChargingFull,
+                    title = "Background playback",
+                    subtitle = if (batteryExempt) {
+                        "On — music keeps playing when the app is closed"
+                    } else {
+                        "Off — tap to keep playing after you close the app"
+                    },
+                    onClick = { requestIgnoreBatteryOptimizations(context) },
                 )
             }
         }
@@ -312,12 +348,11 @@ fun SettingsScreen(
 
         item {
             SettingsGroup(title = stringResource(R.string.settings_storage)) {
-                SettingsStorageItem(
+                SettingsItem(
                     icon = Icons.Rounded.Storage,
                     title = stringResource(R.string.settings_cache),
-                    usedLabel = "1.2 GB",
-                    totalLabel = "4 GB",
-                    progress = 0.3f,
+                    subtitle = Formatter.formatShortFileSize(context, state.totalCacheBytes) + " used",
+                    onClick = onOpenStorage,
                 )
             }
         }
@@ -460,6 +495,28 @@ private fun openNotificationSettings(context: android.content.Context) {
     runCatching { context.startActivity(intent) }
 }
 
+/** True when the app is whitelisted from battery optimization (so its playback service survives). */
+private fun isIgnoringBatteryOptimizations(context: android.content.Context): Boolean {
+    val pm = context.getSystemService(android.content.Context.POWER_SERVICE) as PowerManager
+    return pm.isIgnoringBatteryOptimizations(context.packageName)
+}
+
+/**
+ * If not already exempt, shows the system "Allow background activity?" dialog for Melodix; otherwise
+ * opens the battery-optimization list so the user can change it. Exempting the app is what stops the
+ * OS (especially aggressive OEMs) from killing playback when it reclaims memory.
+ */
+@SuppressLint("BatteryLife")
+private fun requestIgnoreBatteryOptimizations(context: android.content.Context) {
+    val intent = if (isIgnoringBatteryOptimizations(context)) {
+        Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+    } else {
+        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+            .setData(Uri.parse("package:${context.packageName}"))
+    }
+    runCatching { context.startActivity(intent) }
+}
+
 private fun openSupportEmail(context: android.content.Context) {
     val intent = Intent(Intent.ACTION_SENDTO).apply {
         data = Uri.parse("mailto:")
@@ -485,11 +542,11 @@ private fun SettingsGroup(
         )
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(1.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         ) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
                 content()
@@ -641,53 +698,6 @@ private fun SettingsToggleItem(
                 checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
                 checkedTrackColor = MaterialTheme.colorScheme.primary,
             ),
-        )
-    }
-}
-
-@Composable
-private fun SettingsStorageItem(
-    icon: ImageVector,
-    title: String,
-    usedLabel: String,
-    totalLabel: String,
-    progress: Float,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp),
-            )
-            Spacer(Modifier.width(16.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = "$usedLabel / $totalLabel",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp),
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            strokeCap = StrokeCap.Round,
         )
     }
 }
